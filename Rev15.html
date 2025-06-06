@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Typing Practice</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 font-sans text-gray-900">
+  <div class="flex max-w-7xl mx-auto mt-10 gap-10 px-4">
+    <main class="flex-1 space-y-6">
+      <header class="text-center">
+        <h1 class="text-4xl font-bold">Typing Practice</h1>
+        <p class="text-lg text-gray-600 mt-2">Learn to type faster and more accurately — one key at a time</p>
+      </header>
+      <div class="space-x-4 text-center">
+        <button onclick="setMode('lesson')" class="bg-indigo-500 hover:bg-indigo-600 text-white font-medium px-4 py-2 rounded-full transition">Learn to Type</button>
+        <button onclick="setMode('text')" class="bg-indigo-100 hover:bg-indigo-200 text-indigo-700 font-medium px-4 py-2 rounded-full transition">Practice Text</button>
+        <button onclick="setMode('code')" class="bg-indigo-100 hover:bg-indigo-200 text-indigo-700 font-medium px-4 py-2 rounded-full transition">Practice Code</button>
+      </div>
+      <div id="onboarding" class="bg-yellow-100 border-l-4 border-yellow-400 p-4 hidden">
+        <p class="text-sm text-gray-700"><strong>Welcome!</strong> Click a mode above to get started. Lessons will guide you step-by-step.</p>
+      </div>
+      <div id="lessonDescription" class="italic text-gray-600"></div>
+      <div class="w-full bg-gray-300 rounded-full h-2.5">
+        <div id="progressFill" class="bg-green-500 h-2.5 rounded-full transition-all duration-300 ease-in-out w-0"></div>
+      </div>
+      <div id="quote" class="bg-white p-6 rounded-lg shadow text-lg leading-relaxed border-2 border-blue-300"></div>
+      <div id="stats" class="text-sm text-gray-600"></div>
+      <div class="flex gap-4">
+        <button onclick="resetTest()" class="bg-gray-100 hover:bg-gray-200 text-gray-800 px-4 py-2 rounded">Reset</button>
+        <button onclick="nextGuidedLesson()" class="bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded">Next</button>
+        <button onclick="tryAgain()" class="bg-indigo-100 hover:bg-indigo-200 text-indigo-700 px-4 py-2 rounded">Try Again</button>
+      </div>
+      <div id="feedbackModal" class="hidden bg-white border border-gray-200 rounded p-4 mt-4 shadow"></div>
+    </main>
+    <aside class="w-80 bg-white p-6 rounded-lg shadow text-center">
+      <img src="https://images-na.ssl-images-amazon.com/images/I/81OtwF1XAPL.jpg" alt="The Little Prince" class="w-24 mx-auto mb-4">
+      <h3 class="font-semibold">The Little Prince</h3>
+      <p class="text-sm text-gray-500 mb-2">by Antoine de Saint-Exupéry</p>
+      <a href="https://www.amazon.com/dp/0156012197?tag=youraffiliatetag" target="_blank" class="text-indigo-500 hover:underline">Buy on Amazon</a>
+    </aside>
+  </div>
+
+  <script>
+    const quote = document.getElementById('quote');
+    const stats = document.getElementById('stats');
+    const progressFill = document.getElementById('progressFill');
+    const lessonDescription = document.getElementById('lessonDescription');
+    const onboarding = document.getElementById('onboarding');
+    const feedbackModal = document.getElementById('feedbackModal');
+    let guidedIndex = 0;
+
+    let guidedLessons = [
+      { text: "a a a a aa aa aa aa s s s s ss ss ss ss as as as sa sa sa a s a s a", desc: "Level 1: Practice letters 'a' and 's'." },
+      { text: "d d d d dd dd dd dd f f f f ff ff ff ff df df df fd fd fd d f d f d", desc: "Level 2: Practice letters 'd' and 'f'." },
+      { text: "j j j j jj jj jj jj k k k k kk kk kk kk jk jk jk kj kj kj j k j k j", desc: "Level 3: Practice letters 'j' and 'k'." },
+      { text: "l l l l ll ll ll ll ; ; ; ; ;; ;; ;; ;; l; l; l; ;l ;l ;l l ; l ; l", desc: "Level 4: Practice letters 'l' and ';'." },
+      { text: "a s d f j k l ; as df jk l; aj sk dl fa ;l ;k j; l; fj ds ak al sj", desc: "Level 5: Full home row drill with combinations." },
+      { text: "Let's wrap up: as df jk l; aj sk dl fa ;l ;k j; l; fj ds ak al sj fj dk sl aj fk sd lj ak dj fl as jk;", desc: "Wrap-up: Mastering the home row with complex combinations." }
+    ];
+
+    let typedChars = [];
+    let quoteText = '';
+
+    function displayQuote(text) {
+      quote.innerHTML = '';
+      quoteText = text;
+      typedChars = Array(text.length).fill(null);
+
+      text.split('').forEach(char => {
+        const span = document.createElement('span');
+        span.textContent = char;
+        quote.appendChild(span);
+      });
+
+      document.addEventListener('keydown', handleTyping);
+    }
+
+    function updateDisplay() {
+      const spans = quote.querySelectorAll('span');
+      spans.forEach((span, index) => {
+        span.className = '';
+        const typed = typedChars[index];
+        const expected = span.textContent;
+
+        if (typed == null) return;
+
+        if (typed.char === expected && typed.mistyped === false) {
+          span.classList.add('text-green-500');
+        } else if (typed.char === expected && typed.mistyped === true) {
+          span.classList.add('text-amber-500');
+        } else {
+          span.classList.add('text-red-500', 'underline');
+        }
+      });
+
+      const correctCount = typedChars.filter((entry, i) =>
+        entry && entry.char === quoteText[i]
+      ).length;
+
+      const accuracy = typedChars.filter(c => c).length
+        ? ((correctCount / typedChars.filter(c => c).length) * 100).toFixed(1)
+        : 100;
+
+      const elapsedTime = (new Date() - startTime) / 1000 / 60;
+      const wpm = (correctCount / 5 / elapsedTime).toFixed(1);
+
+      stats.textContent = `Accuracy: ${accuracy}% | WPM: ${wpm}`;
+
+      if (typedChars.every((entry, i) => entry && entry.char === quoteText[i])) {
+        feedbackModal.classList.remove('hidden');
+        feedbackModal.innerText = `Great work! Accuracy: ${accuracy}% | WPM: ${wpm}`;
+        document.removeEventListener('keydown', handleTyping);
+      }
+    }
+
+    function handleTyping(e) {
+      if (e.key.length > 1 && e.key !== 'Backspace') return;
+
+      const currentIndex = typedChars.findIndex(entry => entry === null);
+      if (e.key === 'Backspace') {
+        const backIndex = typedChars.findLastIndex(entry => entry !== null);
+        if (backIndex !== -1) {
+          typedChars[backIndex] = null;
+        }
+      } else if (currentIndex !== -1) {
+        const expected = quoteText[currentIndex];
+        typedChars[currentIndex] = {
+          char: e.key,
+          mistyped: e.key !== expected
+        };
+      }
+      updateDisplay();
+    }
+
+    function updateProgress() {
+      const percent = ((guidedIndex + 1) / guidedLessons.length) * 100;
+      progressFill.style.width = percent + '%';
+    }
+
+    function setMode(mode) {
+      onboarding.style.display = 'block';
+      if (mode === 'text') {
+        guidedLessons = [
+          { text: "It is only with the heart that one can see rightly; what is essential is invisible to the eye.", desc: "Quote from 'The Little Prince' by Antoine de Saint-Exupéry." }
+        ];
+      } else if (mode === 'code') {
+        guidedLessons = [
+          { text: "function greet() { console.log('Hello, world!'); }", desc: "Typing a simple JavaScript function." }
+        ];
+      } else {
+        guidedLessons = [
+          { text: "a a a a aa aa aa aa s s s s ss ss ss ss as as as sa sa sa a s a s a", desc: "Level 1: Practice letters 'a' and 's'." },
+          { text: "d d d d dd dd dd dd f f f f ff ff ff ff df df df fd fd fd d f d f d", desc: "Level 2: Practice letters 'd' and 'f'." },
+          { text: "j j j j jj jj jj jj k k k k kk kk kk kk jk jk jk kj kj kj j k j k j", desc: "Level 3: Practice letters 'j' and 'k'." },
+          { text: "l l l l ll ll ll ll ; ; ; ; ;; ;; ;; ;; l; l; l; ;l ;l ;l l ; l ; l", desc: "Level 4: Practice letters 'l' and ';'." },
+          { text: "a s d f j k l ; as df jk l; aj sk dl fa ;l ;k j; l; fj ds ak al sj", desc: "Level 5: Full home row drill with combinations." },
+          { text: "Let's wrap up: as df jk l; aj sk dl fa ;l ;k j; l; fj ds ak al sj fj dk sl aj fk sd lj ak dj fl as jk;", desc: "Wrap-up: Mastering the home row with complex combinations." }
+        ];
+      }
+      guidedIndex = 0;
+      resetTest();
+      updateProgress();
+    }
+
+    function resetTest() {
+      const lesson = guidedLessons[guidedIndex];
+      lessonDescription.textContent = lesson.desc;
+      stats.textContent = '';
+      feedbackModal.style.display = 'none';
+      document.removeEventListener('keydown', handleTyping);
+      typedChars = [];
+      displayQuote(lesson.text);
+      startTime = new Date();
+    }
+
+    function nextGuidedLesson() {
+      onboarding.style.display = 'none';
+      feedbackModal.style.display = 'none';
+      if (guidedIndex < guidedLessons.length - 1) {
+        guidedIndex++;
+        resetTest();
+        updateProgress();
+      }
+    }
+
+    function tryAgain() {
+      feedbackModal.style.display = 'none';
+      resetTest();
+    }
+
+    let startTime;
+    window.onload = () => {
+      startTime = new Date();
+      resetTest();
+    };
+  </script>
+</body>
+</html>
